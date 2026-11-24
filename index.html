@@ -22,9 +22,15 @@
       overflow-x: hidden;
       color: #f4f8fc;
       font-family: "Arial Narrow", "Segoe UI", Arial, sans-serif;
+	  opacity: 0;
+      transition: opacity 1s ease-in-out;
       background:
         radial-gradient(ellipse at 50% 58%, rgba(0, 91, 157, .48), transparent 56%),
         linear-gradient(180deg, #020812 0%, #061b32 56%, #020812 100%);
+    }
+
+    body.loaded {
+      opacity: 1;
     }
 
     body::before {
@@ -494,6 +500,7 @@
       box-shadow: 0 0 9px rgba(105, 217, 255, .45);
     }
 
+    /* PASSWORD DISABLED: login overlay styles
     #password-overlay {
       position: fixed;
       inset: 0;
@@ -504,17 +511,6 @@
       align-items: center;
       z-index: 9999;
       font-family: sans-serif;
-      opacity: 1;
-      visibility: visible;
-      transition: opacity 0.6s ease, visibility 0.6s;
-    }
-
-    /* Fades out, then becomes visibility: hidden once the fade finishes
-       (visibility switches at the end of its transition, so the fade is seen). */
-    #password-overlay.hidden {
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none; /* Prevents accidental clicks while fading out */
     }
 
     .login-box {
@@ -548,12 +544,7 @@
       margin-top: 0.75rem;
       display: none;
     }
-	
-	#gotit-msg {
-      color: #34deeb;
-      margin-top: 0.75rem;
-      display: none;
-    }
+    END PASSWORD DISABLED */
 
     .mute-btn {
       position: fixed;
@@ -594,15 +585,19 @@
   </style>
 </head>
 <body>
-  <!-- <div id="password-overlay">
+  <!-- PASSWORD DISABLED: login overlay
+  <div id="password-overlay">
     <form class="login-box" onsubmit="checkPassword(event)">
-      <h2>IDENTIFICATION REQUIRED</h2>
-      <input type="password" id="password-input" placeholder="Enter ID" required autofocus>
+      <h2>CONFIRM ID</h2>
+      <input type="password" id="password-input" placeholder="Identification" required autofocus>
       <button type="submit">Verify</button>
       <p id="error-msg">Verifiction failed. Log ID # required.</p>
-	  <p id="gotit-msg">Identification confirmed.</p>
-    </form> -->
+    </form>
   </div>
+  -->
+
+
+
   <audio autoplay="" id="bgm" loop="" src="Assets/illusive.mp3"></audio>
   <button aria-label="Mute music" aria-pressed="false" class="mute-btn" id="muteBtn" title="Mute music" type="button">
 <svg aria-hidden="true" class="icon-sound" viewbox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"></path><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"></path></svg>
@@ -799,6 +794,10 @@ Many AIs develop a sort of "personality" over time, regardless of any efforts to
       // Measure after the panel becomes visible so long entries can be constrained and scrolled.
       requestAnimationFrame(() => positionPanel(member));
     }
+	
+	window.addEventListener("load", () => {
+    document.body.classList.add("loaded");
+    });
 
     // Show artwork only once it actually loads; missing files keep the placeholder.
     document.querySelectorAll('.portrait-img, .sphere-img').forEach(img => {
@@ -807,30 +806,41 @@ Many AIs develop a sort of "personality" over time, regardless of any efforts to
       else img.addEventListener('load', markLoaded);
     });
 
-    // More secret things hehehehe
-    const CORRECT_PASSWORD = "0184";
-
-    // Keep user unlocked during the current browser session
-    if (sessionStorage.getItem("unlocked") === "true") {
-      document.getElementById("password-overlay").style.display = "none";
-    }
-
-    function checkPassword(event) {
-      event.preventDefault(); // Prevents page reload on form submit
-      const entered = document.getElementById("password-input").value;
-      const errorMsg = document.getElementById("error-msg");
-	  const gotitMsg = document.getElementById("gotit-msg");
-
-      if (entered === CORRECT_PASSWORD) {
-	    gotitMsg.style.display = "block";
-        errorMsg.style.display = "none";
-        document.getElementById("password-input").blur();
-        document.getElementById("password-overlay").classList.add("hidden");
-        sessionStorage.setItem("unlocked", "true");
-      } else {
-        errorMsg.style.display = "block";
-      }
-    }
+    // PASSWORD DISABLED: login logic
+    // // More secret things hehehehe
+    // const CORRECT_PASSWORD = "0184";
+    //
+    // // Keep user unlocked during the current browser session
+    // if (sessionStorage.getItem("unlocked") === "true") {
+    //   document.getElementById("password-overlay").style.display = "none";
+    // }
+    //
+    // function checkPassword(event) {
+    //   event.preventDefault(); // Prevents page reload on form submit
+    //   const entered = document.getElementById("password-input").value;
+    //   const errorMsg = document.getElementById("error-msg");
+    //
+    //   if (entered === CORRECT_PASSWORD) {
+    //     document.getElementById("password-overlay").classList.add("hidden");
+    //     sessionStorage.setItem("unlocked", "true");
+    //   } else {
+    //     errorMsg.style.display = "block";
+    //   }
+    // }
+    //
+    // (These are CSS rules, not JavaScript. If re-enabled, move them into the <style> block.)
+    // #password-overlay {
+    //   /* Keep your existing layout styles (e.g., display: flex, position: fixed, etc.) */
+    //   opacity: 1;
+    //   transition: opacity 0.5s ease, display 0.5s allow-discrete;
+    // }
+    //
+    // #password-overlay.hidden {
+    //   opacity: 0;
+    //   display: none;
+    //   pointer-events: none; /* Prevents accidental clicks while fading out */
+    // }
+    // END PASSWORD DISABLED
 
     // Click sound for every entry (mouse, touch, or Enter/Space). Restarts on rapid presses.
     const buttonSfx = new Audio('Assets/button.mp3');
