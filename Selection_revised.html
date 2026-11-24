@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="Assets/smai.ico" rel="icon" type="image/png"/>
+  <title>SM-AI DATABASE - Assembly of Allied Nations</title>
+  <style>
+    :root {
+      --blue: #0876b5;
+      --cyan: #69d9ff;
+      --orange: #ff572b;
+      --panel: rgba(3, 18, 35, .94);
+      --muted: #9eb5c8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      color: #f4f8fc;
+      font-family: "Arial Narrow", "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(ellipse at 50% 58%, rgba(0, 91, 157, .48), transparent 56%),
+        linear-gradient(180deg, #020812 0%, #061b32 56%, #020812 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .5;
+      background:
+        linear-gradient(110deg, transparent 0 12%, rgba(30, 145, 205, .12) 12.1%, transparent 12.5% 84%, rgba(30, 145, 205, .1) 84.2%, transparent 84.6%),
+        repeating-linear-gradient(0deg, transparent 0 79px, rgba(80, 177, 220, .045) 80px, transparent 81px);
+    }
+
+    .screen {
+      position: relative;
+      width: min(1600px, 100%);
+      min-height: 100vh;
+      margin: auto;
+      padding: clamp(22px, 3.5vw, 54px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: baseline;
+      gap: 18px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(25px, 3vw, 42px);
+      line-height: 1;
+      letter-spacing: .035em;
+      font-weight: 800;
+      text-shadow: 0 0 16px rgba(85, 202, 255, .55);
+    }
+
+    .subtitle {
+      color: var(--cyan);
+      font-size: 11px;
+      letter-spacing: .22em;
+    }
+
+    /* The stage controls the scene only. Character buttons never participate in layout flow. */
+    .stage-viewport {
+      width: 100%;
+      overflow-x: visible;
+      overflow-y: visible;
+      scrollbar-color: rgba(105, 217, 255, .45) rgba(3, 18, 35, .35);
+    }
+
+    .stage-wrap {
+      position: relative;
+      min-width: 900px;
+      height: clamp(520px, 69vh, 720px);
+      isolation: isolate;
+      /* V formation: how much higher (further back) each step away from the centre stands. */
+      --v-step: 2%;
+    }
+
+    /* V-shaped floor line that follows the formation. Its slope matches --v-step. */
+    .stage-floor {
+      position: absolute;
+      z-index: 2;
+      left: -6%;
+      width: 112%;
+      bottom: 8%;
+      height: calc(var(--v-step) * 5.15);
+      overflow: visible;
+      opacity: .82;
+      pointer-events: none;
+      filter: drop-shadow(0 0 4px var(--orange)) drop-shadow(0 0 12px rgba(255, 73, 35, .8));
+    }
+    .stage-floor polyline {
+      fill: none;
+      stroke: var(--orange);
+      stroke-width: 5;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    /* No z-index here, so the sphere can sit behind the floor line and the figures in front of it. */
+    .squad {
+      position: absolute;
+      inset: 0;
+      overflow: visible;
+    }
+
+    /* Every character has a fixed anchor. Change --x to reposition one.
+       --d is the distance from the centre of the V (0 = front centre); it sets height and scale. */
+    .member {
+      --scale: calc(.94 - var(--d, 0) * .04);
+      position: absolute;
+      left: var(--x);
+      bottom: calc(3% + var(--d, 0) * var(--v-step) + var(--rise, 0%));
+      width: 14%;
+      height: 91%;
+      z-index: var(--depth, 3);
+      display: block;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      color: inherit;
+      background: transparent;
+      cursor: pointer;
+      overflow: visible;
+      transform: translateX(-50%) scale(var(--scale, 1));
+      transform-origin: center bottom;
+      transition: filter .35s ease, transform .5s cubic-bezier(.2,.8,.2,1), z-index 0s;
+      -webkit-tap-highlight-color: transparent;
+      /* The button's box is a wide rectangle; only the visible figure takes clicks,
+         so the sphere behind stays clickable between the characters. */
+      pointer-events: none;
+    }
+
+    .member:focus-visible .portrait {
+      outline: 2px solid var(--cyan);
+      outline-offset: 5px;
+      border-radius: 48% 48% 8% 8%;
+    }
+
+    .member-name {
+      position: absolute;
+      z-index: 4;
+      top: 0;
+      left: -12%;
+      width: 124%;
+      color: #dcecf6;
+      font-size: clamp(12px, 1.12vw, 15px);
+      text-align: center;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      text-shadow: 0 1px 8px #00101f, 0 0 8px #00101f;
+      transition: color .3s, text-shadow .3s;
+      pointer-events: none;
+    }
+
+    .portrait {
+      position: absolute;
+      inset: 32px 0 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      background: transparent;
+      overflow: visible;
+      transform-origin: center bottom;
+      transition: transform .5s cubic-bezier(.2,.8,.2,1), filter .35s;
+      filter: grayscale(1) saturate(.3) brightness(.72);
+      pointer-events: none;
+    }
+
+    /* Abstract, self-contained person placeholder. Replace this span with an img if desired
+       (give the img pointer-events: auto so it stays clickable). */
+    .silhouette {
+      position: relative;
+      display: block;
+      width: min(90%, 190px);
+      height: 91%;
+      max-height: 570px;
+      opacity: .73;
+      filter: grayscale(1);
+      transition: filter .35s, opacity .35s;
+    }
+
+    .silhouette::before {
+      content: "";
+      position: absolute;
+      top: 1%;
+      left: 33%;
+      width: 34%;
+      height: 21%;
+      border-radius: 48% 48% 42% 42%;
+      background: linear-gradient(120deg, #b4c8d2, #45647a 75%);
+      box-shadow: 0 0 18px rgba(111, 198, 231, .18);
+      pointer-events: auto;
+    }
+
+    .silhouette::after {
+      content: "";
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      top: 23%;
+      bottom: 0;
+      clip-path: polygon(31% 0, 69% 0, 100% 17%, 86% 47%, 77% 100%, 23% 100%, 14% 47%, 0 17%);
+      background: linear-gradient(100deg, #243f54, #8aa1ae 45%, #1a354b);
+      border: 1px solid rgba(185, 226, 243, .25);
+      pointer-events: auto;
+    }
+
+    /* Character artwork (Assets/<Name>.png). Hidden until the file loads; the silhouette shows meanwhile.
+       Per-character tuning, set in each button's style attribute:
+         --img-scale  size multiplier (1 = default, 1.1 = 10% bigger); grows upward from the feet
+         --img-y      vertical nudge, % of the image's height (positive = down, negative = up)
+         --img-x      horizontal nudge, % of the image's width (positive = right) */
+    .portrait-img {
+      transform: translate(var(--img-x, 0%), var(--img-y, 0%)) scale(var(--img-scale, 1));
+      transform-origin: center bottom;
+      position: relative;
+      display: none;
+      width: auto;
+      height: 91%;
+      max-width: 150%;
+      max-height: 570px;
+      object-fit: contain;
+      object-position: center bottom;
+      opacity: .9;
+      pointer-events: auto;
+      transition: filter .35s, opacity .35s, transform .35s;
+    }
+    .portrait.has-image .portrait-img { display: block; }
+    .portrait.has-image .silhouette { display: none; }
+    .member[aria-pressed="true"] .portrait-img {
+      opacity: 1;
+      filter: drop-shadow(0 0 15px rgba(255, 105, 57, .18));
+    }
+
+    .member:hover .portrait { filter: grayscale(.65) saturate(.5) brightness(.92); }
+
+    .member[aria-pressed="true"] {
+      z-index: 30;
+      transform: translateX(-50%) scale(calc(var(--scale, 1) * 1.11));
+    }
+
+    .member[aria-pressed="true"] .portrait {
+      filter: grayscale(.12) saturate(.9) brightness(1.08);
+    }
+
+    .member[aria-pressed="true"] .silhouette {
+      opacity: 1;
+      filter: grayscale(.12) drop-shadow(0 0 15px rgba(255, 105, 57, .18));
+    }
+
+    .member[aria-pressed="true"] .member-name {
+      color: #fff;
+      text-shadow: 0 0 10px var(--orange), 0 1px 8px #00101f;
+    }
+
+    /* Optional non-interactive background character. Add one inside .squad and adjust its variables. */
+    .back-figure {
+      position: absolute;
+      left: var(--x, 50%);
+      bottom: var(--bottom, 22%);
+      width: var(--width, 11%);
+      height: var(--height, 65%);
+      z-index: 1;
+      transform: translateX(-50%) scale(.88);
+      opacity: .32;
+      pointer-events: none;
+    }
+    .back-figure .silhouette { width: 100%; height: 100%; }
+
+    /* A selectable background sphere. Replace .sphere-visual with an img later if desired. */
+    .sphere-entry {
+      left: 50%;
+      top: 5%;
+      bottom: auto;
+      width: auto;
+      height: min(88%, 660px);
+      aspect-ratio: 1;
+      /* Behind the floor line and the figures; still clickable wherever no figure covers it. */
+      z-index: 1;
+      padding: 0;
+      overflow: visible;
+      transform: translateX(-50%);
+      transform-origin: center;
+    }
+    .sphere-entry[aria-pressed="true"] {
+      z-index: 1;
+      transform: translateX(-50%) scale(1.03);
+    }
+    .sphere-entry .member-name {
+      top: -25px;
+      left: -20%;
+      width: 140%;
+      color: #bfeaff;
+      letter-spacing: .12em;
+    }
+    .sphere-visual {
+      position: absolute;
+      inset: 0;
+      display: block;
+      overflow: hidden;
+      border: 1px solid rgba(132, 225, 255, .78);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 32% 27%, rgba(226, 250, 255, .96) 0 2%, rgba(90, 202, 246, .72) 8%, transparent 30%),
+        radial-gradient(circle at 62% 65%, rgba(18, 126, 194, .95), rgba(5, 43, 86, .98) 58%, #020b1b 78%);
+      box-shadow:
+        inset -54px -48px 96px rgba(0, 0, 0, .68),
+        inset 24px 24px 66px rgba(155, 232, 255, .28),
+        0 0 40px rgba(69, 193, 255, .35),
+        0 0 120px rgba(31, 119, 192, .23);
+      opacity: .68;
+      filter: grayscale(1) brightness(.72);
+      transition: opacity .35s, filter .35s, transform .5s, box-shadow .35s;
+      pointer-events: auto;
+    }
+    .sphere-visual::before,
+    .sphere-visual::after {
+      content: "";
+      position: absolute;
+      inset: 12%;
+      border: 1px solid rgba(164, 232, 255, .24);
+      border-radius: 50%;
+      transform: rotate(-28deg) scaleX(1.35);
+    }
+    .sphere-visual::after {
+      inset: 22% -12%;
+      transform: rotate(32deg) scaleY(.45);
+      border-color: rgba(104, 216, 255, .5);
+      box-shadow: 0 0 12px rgba(76, 201, 255, .32);
+    }
+    .sphere-entry:hover .sphere-visual {
+      opacity: .82;
+      filter: grayscale(.5) brightness(.95);
+    }
+    .sphere-entry[aria-pressed="true"] .sphere-visual {
+      opacity: .94;
+      filter: grayscale(0) brightness(1.12);
+      box-shadow:
+        inset -54px -48px 96px rgba(0, 0, 0, .55),
+        inset 24px 24px 66px rgba(155, 232, 255, .35),
+        0 0 54px rgba(69, 193, 255, .65),
+        0 0 150px rgba(31, 119, 192, .48);
+    }
+    /* Sphere artwork (Assets/System.png). Replaces the drawn sphere once the file loads.
+       Accepts the same --img-scale / --img-x / --img-y variables; it scales from its centre. */
+    .sphere-img {
+      transform: translate(var(--img-x, 0%), var(--img-y, 0%)) scale(var(--img-scale, 1));
+      transform-origin: center;
+      position: absolute;
+      inset: 0;
+      display: none;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 50%;
+      opacity: .68;
+      filter: grayscale(1) brightness(.72);
+      pointer-events: auto;
+      transition: opacity .35s, filter .35s, transform .35s;
+    }
+    .sphere-entry.has-image .sphere-img { display: block; }
+    .sphere-entry.has-image .sphere-visual { display: none; }
+    .sphere-entry:hover .sphere-img { opacity: .82; filter: grayscale(.5) brightness(.95); }
+    .sphere-entry[aria-pressed="true"] .sphere-img { opacity: .94; filter: grayscale(0) brightness(1.12); }
+    .sphere-entry:focus-visible .sphere-img { outline: 2px solid var(--cyan); outline-offset: 6px; }
+
+    .sphere-entry:focus-visible .sphere-visual {
+      outline: 2px solid var(--cyan);
+      outline-offset: 6px;
+    }
+
+    /* One independent overlay panel. Its dimensions never resize the character stage. */
+    .info-panel {
+      position: absolute;
+      z-index: 60;
+      top: 24px;
+      left: 20px;
+      width: min(390px, calc(100vw - 36px));
+      max-height: min(58vh, 520px);
+      padding: 26px 28px 24px;
+      overflow: auto;
+      overscroll-behavior: contain;
+      border: 1px solid rgba(105, 217, 255, .55);
+      border-left: 3px solid var(--orange);
+      background:
+        linear-gradient(135deg, rgba(11, 42, 67, .97), rgba(2, 13, 27, .97));
+      box-shadow: 0 16px 42px rgba(0, 0, 0, .55), inset 0 0 24px rgba(33, 130, 180, .12);
+      clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition: opacity .28s ease, transform .35s ease, visibility .28s;
+    }
+
+    .info-panel.is-open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .panel-close {
+      position: sticky;
+      float: right;
+      top: 0;
+      margin: -14px -14px 4px 12px;
+      width: 30px;
+      height: 30px;
+      border: 1px solid rgba(105, 217, 255, .45);
+      color: var(--cyan);
+      background: rgba(2, 14, 28, .85);
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .panel-close:hover { color: white; border-color: var(--orange); }
+
+    .info-panel .eyebrow {
+      display: block;
+      margin: 0 34px 10px 0;
+      color: var(--orange);
+      font-size: 10px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+    }
+    .info-panel h2 {
+      margin: 0 0 14px;
+      color: #fff;
+      font-size: clamp(22px, 2.1vw, 31px);
+      line-height: 1.1;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .info-panel p {
+      margin: 0;
+      color: #c2d2df;
+      font-size: 13px;
+      line-height: 1.65;
+      white-space: pre-line;
+      overflow-wrap: anywhere;
+    }
+    .info-panel .divider {
+      width: 75%;
+      height: 1px;
+      margin: 18px 0;
+      background: linear-gradient(90deg, var(--cyan), transparent);
+    }
+    .info-panel .role {
+      color: var(--cyan);
+      font-size: 11px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    .footer-hint {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      justify-content: center;
+      gap: clamp(18px, 4vw, 55px);
+      padding-top: 15px;
+      color: #d8e8f3;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+    .key {
+      display: inline-grid;
+      place-items: center;
+      width: 23px;
+      height: 23px;
+      margin-right: 7px;
+      border: 1px solid var(--cyan);
+      border-radius: 50%;
+      color: var(--cyan);
+      font-weight: bold;
+      box-shadow: 0 0 9px rgba(105, 217, 255, .45);
+    }
+
+    .mute-btn {
+      position: fixed;
+      z-index: 100;
+      right: clamp(14px, 2.5vw, 32px);
+      bottom: clamp(14px, 2.5vw, 32px);
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 1px solid var(--cyan);
+      border-radius: 50%;
+      color: var(--cyan);
+      background: var(--panel);
+      box-shadow: 0 0 9px rgba(105, 217, 255, .45);
+      cursor: pointer;
+    }
+    .mute-btn[aria-pressed="true"] { color: var(--orange); border-color: var(--orange); }
+    .mute-btn svg { width: 22px; height: 22px; fill: currentColor; }
+    .mute-btn .wave { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+    .mute-btn .icon-muted, .mute-btn[aria-pressed="true"] .icon-sound { display: none; }
+    .mute-btn[aria-pressed="true"] .icon-muted { display: block; }
+
+    @media (max-width: 700px) {
+      .screen { padding: 22px 14px 76px; }
+      header { display: block; }
+      .subtitle { display: block; margin-top: 8px; }
+      .stage-wrap { min-width: 900px; height: 560px; }
+      .info-panel { max-height: 54vh; padding: 20px; }
+      .info-panel p { font-size: 12px; }
+      .footer-hint { justify-content: flex-start; font-size: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <audio autoplay="" id="bgm" loop="" src="Assets/illusive.mp3"></audio>
+  <button aria-label="Mute music" aria-pressed="false" class="mute-btn" id="muteBtn" title="Mute music" type="button">
+<svg aria-hidden="true" class="icon-sound" viewbox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"></path><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"></path></svg>
+<svg aria-hidden="true" class="icon-muted" viewbox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"></path><path class="wave" d="M16 9l6 6M22 9l-6 6"></path></svg>
+</button>
+
+  <main class="screen">
+    <header>
+<h1>PCA AI DATABASE</h1>
+<span class="subtitle">Self-Modifying Series</span>
+</header>
+
+    <div class="stage-viewport">
+      <div class="stage-wrap" id="stageWrap">
+        <svg class="stage-floor" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polyline points="0,0 50,100 100,0"></polyline></svg>
+        <section class="squad" id="squad" aria-label="Squad members">
+      <button class="member sphere-entry" type="button" aria-pressed="false"
+        style="--img-scale:1; --img-y:0%;" aria-label="Select The System">
+        <span class="member-name"> </span>
+        <span class="sphere-visual" aria-hidden="true"></span>
+        <img class="sphere-img" src="Assets/sillouhette.png" alt="" aria-hidden="true">
+        <template class="member-data"><span class="eyebrow">AIS-[REDACTED]</span><h2>The System</h2><p>"The System was a dangerous idea from the start, it shouldn't be able to do half the things it's able to do. I was assigned to accompany [REDACTED] to check on the System's software and hardware, and what it had done with the place over the years.
+
+According to [REDACTED], it was made with a lot of empty data all over the place. Basically millions of hard drives in case of updates. As we started checking the data, we figured out that the System had filled it out itself, didn't need any updates. You could tell what was written by the System and what was human code, cause the System, despite being written in a unique language, wrote everything else in its codebase in another new language that's utterly indecipherable, optimized for a machine that doesn't care about something "making sense" like a human. File names are the only reason we know what anything is.
+
+The System apparently has a whole archive folder that it seems pretty proud of, which is just a giant list of programs it wrote to hack things it shouldn't have control over. Traffic lights, any PCA machine, self-driving cars, home televisions- all next to a list of keys that give it data on bypassing all kinds of antivirus. [REDACTED] said they built this thing to NOT be able to take half the planet offline if it wanted to, but... well, that went about as can be expected for a artificial superintelligence. At least it's not connected intrinsically, so if it goes offline, nothing will go down with it.
+
+The System still gave us the tour though, so it still seems pretty friendly to humanity, thank God. A lot of its storage space was just compressed data and an algorithm that could quickly read it without decompression- advanced, but only works in the System's little vacuum. We finished up our inspection and finalized our reports, but I suspect [REDACTED]'s is more important.
+
+I've worked with the System for over 50 years and this thing still scares the hell outta me.
+I don't think that's a feeling that's gonna leave."</p><span class="divider"></span><span class="role">-Senior Tech Lead Houki</span></template>
+      </button>
+      <button class="member" type="button" aria-pressed="false"
+        style="--x:6.5%; --d:4; --depth:6; --img-scale:1.15; --img-y:0%;" aria-label="Select Binah">
+        <span class="member-name">AIV-SM1-4912-Y: "Binah"</span>
+        <span class="portrait"><span class="silhouette"></span><img class="portrait-img" src="Assets/Binah.png" alt=""></span>
+        <template class="member-data"><span class="eyebrow">AIV-SM1-4912-Y</span><h2>Binah</h2><p>"I still remember being appointed as director of the Self-Modifying AI project. The System and the Assembly unanimously wanted some form of new AI prototype that was capable of operating completely autonomously for extended periods of time, and said it was long overdue with our technology- and that we could use this as an opportunity to test mixing that with new combat algorithms we had been developing in the background for some years.
+
+So I started work on the first one, Binah. Early iterations of the AI were androgynous, dedicated to just making something that could fill the base functions and guidelines, and the self-modifying capacities were introduced around iteration H.
+
+We didn't know what to expect, but Binah developed a "personality" frighteningly quickly, and was searching constantly for knowledge. This is actually what got her the name Binah, from the Hebrew "בינה"; before that she was going to just be SM1-4912. We toned it down fairly quickly, but even by deployment, it was clear Binah's repertoire was quite impressive- and would get only more impressive as time went on.
+
+Despite being our first, Binah remains among our brightest. As it turns out, self-modification means she gets better with age, not worse like most AIs... we can only watch and see whether this holds true."</p><span class="divider"></span><span class="role">-Senior Tech Lead Houki</span></template>
+      </button>
+      <button class="member" type="button" aria-pressed="false"
+        style="--x:17.375%; --d:3; --depth:7; --img-scale:1.06; --img-y:0%;" aria-label="Select Onua">
+        <span class="member-name">AIV-SM2-3399->Z: "Onua"</span>
+        <span class="portrait"><span class="silhouette"></span><img class="portrait-img" src="Assets/Onua.png" alt=""></span>
+        <template class="member-data"><span class="eyebrow">AIV-SM2-3399->Z</span><h2>Onua</h2><p>"Onua was built as a direct follow-up to SM1-4912-Y, Binah, but it was a relatively rare example of the System dropping the ball without human or Assembly meddling. The System was definitely happy with Binah's performance, but wanted a more police-functioning AI, given Binah's pretty exclusive use as a military bot. So it led development of Binah's successor, Onua.
+
+I remember when I was called to review 3399-E. She was quiet and relatively peaceful, but as tests went on, that peacefulness was an issue. She was barely even functional as a combat bot. Worse still, she had some sort of bug in her systems- she had a dedicated Combat Mode and Normal Mode, but the combat mode had an IFF lag of 0.79 seconds, and would forget a target's friend-or-foe tag when it lost visual.
+
+Despite best efforts, the problems only got worse as development progressed. For lack of a better term, Onua had a ghost in the machine we could never fix. After iteration Z, development was closed, and Onua was finally determined to be a lost cause."</p><span class="divider"></span><span class="role">-Senior Tech Lead Houki</span></template>
+      </button>
+      <button class="member" type="button" aria-pressed="false"
+        style="--x:28.25%; --d:2; --depth:8; --img-scale:1.07; --img-y:0%;" aria-label="Select Terra">
+        <span class="member-name">AIV-SM3-1919-K: "Terra"</span>
+        <span class="portrait"><span class="silhouette"></span><img class="portrait-img" src="Assets/Terra.png" alt=""></span>
+        <template class="member-data"><span class="eyebrow">AIV-SM3-1919-K</span><h2>Terra</h2><p>"Another largely failed project. Terra was a request by Major General Whiteheart to make an SM-AI that was more combat-oriented, after seeing the success with Binah. At the time, we had been drawing up plans for various directions to take the program since Onua's failure made the System somewhat tentative on the series, but it greenlit Terra.
+
+The Major General got his combat bot, for sure. Terra had an inordinately high rate of collateral damage, possible due in part to the weapons we gave it, but it was never quite able to self-modify to the same extent as Binah or the later models. Terra was content to stay where it was, and never really got over being so destructive.
+
+But Whiteheart didn't want it. Said his area of operation needed a more deft touch. So we practically had to auction the thing to whichever squad could convince the System they wanted it, and that ended up being Kerberos. They're a good squad, depending on the cell, I'm sure Terra can do some good there."</p><span class="divider"></span><span class="role">-Senior Tech Lead Houki</span></template>
+      </button>
+      <button class="member" type="button" aria-pressed="false"
+        style="--x:39.125%; --d:1; --depth:9; --img-scale:1.08; --img-y:0%;" aria-label="Select Alpha">
+        <span class="member-name">AIV-SM4-3512-F: "Alpha"</span>
+        <span class="portrait"><span class="silhouette"></span><img class="portrait-img" src="Assets/Alpha.png" alt=""></span>
+        <template class="member-data"><span class="eyebrow">AIV-SM4-3512-F</span><h2>Alpha</h2><p>"Alpha was created as a direct response to the threat on Magmos, and inadvertently as a partial follow-up to SM3-1919-K (Terra), though it quickly became such that they were only a follow-up in concept. The high casualty rate required a combat-focused AI that could take the heat off of other officers in combat, and Alpha was built to reflect that both on foot and in his piloting algorithm. An AI can't keep up with a human, but when you push it... it can be close.
+
+Alpha was turning out very promising as a protective AI, and the combat algorithms were fitting quite well, but once the Antisystem was destroyed, the System requested we make a few... last-minute tweaks. Being defensive wasn't enough, Alpha also had to be able to take over if he couldn't protect the officers.
+
+This should've pushed him back to revision S, at the least, but it turned out this suited his existing algorithms quite well. Alpha was able to include leadership goals in his combat runtime, since the definitions of the algorithm were deliberately loose, which lets him be very multifaceted.
+
+As an additional note, Alpha is a little more curious than we expected for a combat AI. It learned how to repurpose its combat algorithms into utility for abstract processing, which is letting it perform at a higher capacity than intended, but tests show this really shouldn't be a problem."</p><span class="divider"></span><span class="role">-Senior Tech Lead Houki</span></template>
+      </button>
+      <button class="member" type="button" aria-pressed="false"
+        style="--x:50%; --d:0; --depth:10; --img-scale:1.1; --img-y:0%;" aria-label="Select Delta">
+        <span class="member-name">AIV-SM5-3321-G: "Delta"</span>
+        <span class="portrait"><span class="silhouette"></span><img class="portrait-img" src="Assets/Delta.png" alt=""></span>
+        <template class="member-data"><span class="eyebrow">AIV-SM5-3321-G</span><h2>Delta</h2><p>"Delta is something of a spiritual successor to Onua, in the team's eyes. It's a largely-nonlethal policing bot, made chiefly to take care of areas that need heavy enforcement. Delta is being trained defensively, and a large part of training is on the use of excessive force- an SM-AI weighs enough to crush most peoples' bones if he tackles them (ask me how I know).
+
+In early iterations, Delta had difficulty developing a personality of his own. He mirrored the people around him to unnerving extents, picking up speech patterns and more or less becoming a perfect "average" of everyone he interacted with, weighted by how long he talked with them. By now, he's still got some of that, but is much better with abstract processing and deciding how to act. Who knows how that'll reflect once he's deployed though? His combat abilities are undeniable, but what's an SM-AI without intelligence?
+
+ADDENDUM: Delta's been deployed, he's all grown up now. Of course, turns out there aren't many places where you'd actually need something as powerful as an SM-AI nonlethally, so he's been sent to Magmos to help with prison duty. Makes sense, the team is confident in his abilities."</p><span class="divider"></span><span class="role">-Senior Tech Lead Houki</span></template>
+      </button>
+      <button class="member" type="button" aria-pressed="false"
+        style="--x:60.875%; --d:1; --depth:9; --img-scale:1.05; --img-y:0%;" aria-label="Select Yada">
+        <span class="member-name">AIV-SM6-4912-Z: "Yada"</span>
+        <span class="portrait"><span class="silhouette"></span><img class="portrait-img" src="Assets/Yada.png" alt=""></span>
+        <template class="member-data"><span class="eyebrow">AIV-SM6-4912-Z</span><h2>Yada</h2><p>"Despite that Yada was made directly off the data we obtained from SM1-4912-Y (Binah), we weren't entirely confident what to expect from Yada.
+
+However, this data has led to one of our most curious models. Yada asks questions with startling frequency, and is comparatively easy to distract with conversation or random curiosities. This habit was so difficult to mitigate, Yada was very nearly scrapped after repeated iterations failed to stop its habitual curiosity, though its final iteration at least prevented it from becoming a combat liability. Therefore, it was permitted to service in iteration Z.
+
+On an unrelated note, Yada displays a peculiar trait not seen in any previous models: It "enjoys" listening to music. While that term is used loosely in this case, Yada displays behavior consistent with enjoyment and desire to listen to music, with a current preference toward the classic rock genre. The root cause of this behavior is unclear, but it is an example of its rapidly-shifting behaviors."</p><span class="divider"></span><span class="role">-Senior Tech Lead Houki</span></template>
+      </button>
+      <button class="member" type="button" aria-pressed="false"
+        style="--x:71.75%; --d:2; --depth:8; --img-scale:1; --img-y:-20%;" aria-label="Select Gamma">
+        <span class="member-name">AIV-SM7-4816-J: "Gamma"</span>
+        <span class="portrait"><span class="silhouette"></span><img class="portrait-img" src="Assets/Gamma.png" alt=""></span>
+        <template class="member-data"><span class="eyebrow">AIV-SM7-4816-J</span><h2>Gamma</h2><p>"Developing Gamma was a peculiar process. Where most of the SM-AIs are combat oriented, Gamma was created as a research assistant, in the hopes that she would accumulate enough knowledge to be useful on any front. This led to technical difficulties with her physical body, granted, and what some of us thought was a preemptive deployment, but it was overall a challenge the team and I appreciated.
+
+Early on, the team had a little dissonance on how to design Gamma, but it was for the better. It led to a much calmer and more curious model than expected, with more focus on abstract thought capacity, which is good. Peculiar sort.
+
+The System ordered her to Cryonis, at which point she expanded her personality a good deal more than the research team in the area was expecting of a fully-deployed AI. The circumstances on Cryonis may be contributing... we'll have to see as time goes on."</p><span class="divider"></span><span class="role">-Senior Tech Lead Houki</span></template>
+      </button>
+      <button class="member" type="button" aria-pressed="false"
+        style="--x:82.625%; --d:3; --depth:7; --img-scale:1; --img-y:0%;" aria-label="Select Theta">
+        <span class="member-name">AIV-SM8-0334-Y: "Theta"</span>
+        <span class="portrait"><span class="silhouette"></span><img class="portrait-img" src="Assets/Theta.png" alt=""></span>
+        <template class="member-data"><span class="eyebrow">AIV-SM8-0334-Y</span><h2>Theta</h2><p>"Theta was always an unusual AI, being constructed and tested within Rubicon’s closure system. But, as many scientists predicted, observations only found that it was very poorly adapted to communicating humanly.
+
+Theta is a culmination of the data from all previous SM-series AIs to create a more "human" personality (which its construction emulates), though appears to have lost the majority of its self-modifying capabilities, leading to what researchers described as a “very wooden experience”. Throughout its iterations, Theta has showed little interest in development, apparently having decided that the current data from the previous SM-AIs is sufficient.
+
+This lack of development was deemed unacceptable by the System, however, so iterations to improve it remain ongoing."
+
+ADDENDUM: Theta has been confirmed to be lost in the aftermath of the SCODS satellite destruction, during Iteration-Y testing.</p><span class="divider"></span><span class="role">-Senior Tech Lead Houki</span></template>
+      </button>
+      <button class="member" type="button" aria-pressed="false"
+        style="--x:93.5%; --d:4; --depth:6; --img-scale:1; --img-y:0%;" aria-label="Select Infra">
+        <span class="member-name">AIV-SM9-4600-C: "Infra"</span>
+        <span class="portrait"><span class="silhouette"></span><img class="portrait-img" src="Assets/Infra.png" alt=""></span>
+        <template class="member-data"><span class="eyebrow">AIV-SM9-4600-C</span><h2>Infra</h2><p>"As the youngest of the AI models, it came as some surprises to analysts that Infra asks very few questions about the world around it, and when asked whether it has any questions for the researchers, it very rarely does.
+
+A large part of this may be attributable to it being what some of the team is calling a "walking marketing stunt". The scientists in charge of the project wanted to "miniaturize the System", an impossible task to even approach- though, even knowing this, they still did their best to emulate its processing power, and the results are evident in its decision-making and processing speed abilities.
+
+This led to a marked decrease in curiosity and question-asking compared to its preceding models. Despite being one of the most advanced infantry-scaled localized AI models in the galaxy, with advanced plating made to look like the future is now, it doesn't exhibit the same conventional displays of intelligence as the other models, and analysis shows that it prefers to make most decisions and expressions internally.
+
+Many AIs develop a sort of "personality" over time, regardless of any efforts to the contrary, and we will have to wait and see whether the same will occur with Infra. A lack of expression doesn't necessarily mean a lack of character."</p><span class="divider"></span><span class="role">-Senior Tech Lead Houki</span></template>
+      </button>
+        </section>
+        <aside class="info-panel" id="infoPanel" aria-live="polite" aria-hidden="true">
+          <button class="panel-close" id="panelClose" type="button" aria-label="Close information">×</button>
+          <div id="panelContent"></div>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const members = [...document.querySelectorAll('.member')];
+    const stageWrap = document.getElementById('stageWrap');
+    const panel = document.getElementById('infoPanel');
+    const panelContent = document.getElementById('panelContent');
+    const panelClose = document.getElementById('panelClose');
+    let selectedMember = null;
+
+    function positionPanel(member) {
+      if (!member || !panel.classList.contains('is-open')) return;
+
+      const wrapRect = stageWrap.getBoundingClientRect();
+      const memberRect = member.getBoundingClientRect();
+      const panelWidth = panel.getBoundingClientRect().width;
+      const panelHeight = panel.getBoundingClientRect().height;
+      const gap = 18;
+
+      // Try the selected character's right side first, then its left side.
+      let left = memberRect.right - wrapRect.left + gap;
+      if (left + panelWidth > wrapRect.width - 12) {
+        left = memberRect.left - wrapRect.left - panelWidth - gap;
+      }
+      left = Math.max(12, Math.min(left, wrapRect.width - panelWidth - 12));
+
+      // Keep the panel within the stage vertically; its own content scrolls when long.
+      let top = memberRect.top - wrapRect.top + 75;
+      top = Math.max(14, Math.min(top, wrapRect.height - panelHeight - 14));
+
+      panel.style.left = `${left}px`;
+      panel.style.top = `${top}px`;
+    }
+
+    function closePanel() {
+      members.forEach(member => member.setAttribute('aria-pressed', 'false'));
+      selectedMember = null;
+      panel.classList.remove('is-open');
+      panel.setAttribute('aria-hidden', 'true');
+    }
+
+    function selectMember(member) {
+      if (selectedMember === member) {
+        closePanel();
+        return;
+      }
+
+      members.forEach(item => item.setAttribute('aria-pressed', 'false'));
+      selectedMember = member;
+      member.setAttribute('aria-pressed', 'true');
+
+      const template = member.querySelector('.member-data');
+      panelContent.innerHTML = template ? template.innerHTML : '';
+      panel.classList.add('is-open');
+      panel.setAttribute('aria-hidden', 'false');
+
+      // Measure after the panel becomes visible so long entries can be constrained and scrolled.
+      requestAnimationFrame(() => positionPanel(member));
+    }
+
+    // Show artwork only once it actually loads; missing files keep the placeholder.
+    document.querySelectorAll('.portrait-img, .sphere-img').forEach(img => {
+      const markLoaded = () => { if (img.naturalWidth) img.parentElement.classList.add('has-image'); };
+      if (img.complete) markLoaded();
+      else img.addEventListener('load', markLoaded);
+    });
+
+    // Click sound for every entry (mouse, touch, or Enter/Space). Restarts on rapid presses.
+    const buttonSfx = new Audio('Assets/button.mp3');
+    buttonSfx.preload = 'auto';
+    buttonSfx.volume = 0.5;
+    function playButtonSfx() {
+      try {
+        buttonSfx.currentTime = 0;
+        buttonSfx.play().catch(() => {});
+      } catch (error) {}
+    }
+
+    members.forEach(member => member.addEventListener('click', () => {
+      playButtonSfx();
+      selectMember(member);
+    }));
+    panelClose.addEventListener('click', closePanel);
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closePanel();
+    });
+    window.addEventListener('resize', () => positionPanel(selectedMember));
+    document.querySelector('.stage-viewport').addEventListener('scroll', () => positionPanel(selectedMember));
+
+    // Existing background music and mute behavior retained from the uploaded page.
+    const bgm = document.getElementById('bgm');
+    const muteBtn = document.getElementById('muteBtn');
+    if (bgm && muteBtn) {
+      bgm.volume = 1.0;
+      function startAudio() {
+        bgm.play().then(() => {
+          document.removeEventListener('pointerdown', startAudio);
+          document.removeEventListener('keydown', startAudio);
+        }).catch(() => {});
+      }
+      bgm.play().catch(() => {
+        document.addEventListener('pointerdown', startAudio);
+        document.addEventListener('keydown', startAudio);
+        document.addEventListener('keydown', startAudio);
+      });
+
+      function setMuted(muted) {
+        bgm.muted = muted;
+        muteBtn.setAttribute('aria-pressed', String(muted));
+        muteBtn.setAttribute('aria-label', muted ? 'Unmute music' : 'Mute music');
+        muteBtn.title = muted ? 'Unmute music' : 'Mute music';
+        try { localStorage.setItem('bgmMuted', muted ? '1' : '0'); } catch (error) {}
+      }
+      try {
+        if (localStorage.getItem('bgmMuted') === '1') setMuted(true);
+      } catch (error) {}
+      muteBtn.addEventListener('click', () => setMuted(!bgm.muted));
+    }
+  </script>
+</body>
+</html>
