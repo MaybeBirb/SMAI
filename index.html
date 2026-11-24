@@ -579,10 +579,10 @@
 <body>
   <div id="password-overlay">
     <form class="login-box" onsubmit="checkPassword(event)">
-      <h2>CONFIRM PASSWORD</h2>
-      <input type="password" id="password-input" placeholder="Password" required autofocus>
-      <button type="submit">Unlock</button>
-      <p id="error-msg">Incorrect password. Try again.</p>
+      <h2>CONFIRM ID</h2>
+      <input type="password" id="password-input" placeholder="Identification" required autofocus>
+      <button type="submit">Verify</button>
+      <p id="error-msg">Verifiction failed. Log ID # required.</p>
     </form>
   </div>
   <audio autoplay="" id="bgm" loop="" src="Assets/illusive.mp3"></audio>
@@ -790,7 +790,7 @@ Many AIs develop a sort of "personality" over time, regardless of any efforts to
     });
 
     // More secret things hehehehe
-    const CORRECT_PASSWORD = "secret123";
+    const CORRECT_PASSWORD = "0184";
 
     // Keep user unlocked during the current browser session
     if (sessionStorage.getItem("unlocked") === "true") {
@@ -803,11 +803,23 @@ Many AIs develop a sort of "personality" over time, regardless of any efforts to
       const errorMsg = document.getElementById("error-msg");
 
       if (entered === CORRECT_PASSWORD) {
-        document.getElementById("password-overlay").style.display = "none";
+        document.getElementById("password-overlay").classList.add("hidden");
         sessionStorage.setItem("unlocked", "true");
       } else {
         errorMsg.style.display = "block";
       }
+    }
+
+    #password-overlay {
+      /* Keep your existing layout styles (e.g., display: flex, position: fixed, etc.) */
+      opacity: 1;
+      transition: opacity 0.5s ease, display 0.5s allow-discrete;
+    }
+
+    #password-overlay.hidden {
+      opacity: 0;
+      display: none;
+      pointer-events: none; /* Prevents accidental clicks while fading out */
     }
 
     // Click sound for every entry (mouse, touch, or Enter/Space). Restarts on rapid presses.
