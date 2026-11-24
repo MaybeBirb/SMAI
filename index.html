@@ -504,6 +504,17 @@
       align-items: center;
       z-index: 9999;
       font-family: sans-serif;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.6s ease, visibility 0.6s;
+    }
+
+    /* Fades out, then becomes visibility: hidden once the fade finishes
+       (visibility switches at the end of its transition, so the fade is seen). */
+    #password-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none; /* Prevents accidental clicks while fading out */
     }
 
     .login-box {
@@ -534,6 +545,12 @@
 
     #error-msg {
       color: #ff6b6b;
+      margin-top: 0.75rem;
+      display: none;
+    }
+	
+	#gotit-msg {
+      color: #34deeb;
       margin-top: 0.75rem;
       display: none;
     }
@@ -579,10 +596,11 @@
 <body>
   <div id="password-overlay">
     <form class="login-box" onsubmit="checkPassword(event)">
-      <h2>CONFIRM ID</h2>
-      <input type="password" id="password-input" placeholder="Identification" required autofocus>
+      <h2>IDENTIFICATION REQUIRED</h2>
+      <input type="password" id="password-input" placeholder="Enter ID" required autofocus>
       <button type="submit">Verify</button>
       <p id="error-msg">Verifiction failed. Log ID # required.</p>
+	  <p id="gotit-msg">Identification confirmed.</p>
     </form>
   </div>
   <audio autoplay="" id="bgm" loop="" src="Assets/illusive.mp3"></audio>
@@ -801,25 +819,17 @@ Many AIs develop a sort of "personality" over time, regardless of any efforts to
       event.preventDefault(); // Prevents page reload on form submit
       const entered = document.getElementById("password-input").value;
       const errorMsg = document.getElementById("error-msg");
+	  const gotitMsg = document.getElementById("gotit-msg");
 
       if (entered === CORRECT_PASSWORD) {
+	    gotitMsg.style.display = "block";
+        errorMsg.style.display = "none";
+        document.getElementById("password-input").blur();
         document.getElementById("password-overlay").classList.add("hidden");
         sessionStorage.setItem("unlocked", "true");
       } else {
         errorMsg.style.display = "block";
       }
-    }
-
-    #password-overlay {
-      /* Keep your existing layout styles (e.g., display: flex, position: fixed, etc.) */
-      opacity: 1;
-      transition: opacity 0.5s ease, display 0.5s allow-discrete;
-    }
-
-    #password-overlay.hidden {
-      opacity: 0;
-      display: none;
-      pointer-events: none; /* Prevents accidental clicks while fading out */
     }
 
     // Click sound for every entry (mouse, touch, or Enter/Space). Restarts on rapid presses.
