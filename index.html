@@ -494,6 +494,50 @@
       box-shadow: 0 0 9px rgba(105, 217, 255, .45);
     }
 
+    #password-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: #111;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      font-family: sans-serif;
+    }
+
+    .login-box {
+      background: #222;
+      padding: 2rem;
+      border-radius: 8px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .login-box input {
+      padding: 0.6rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+      margin-right: 0.5rem;
+    }
+
+    .login-box button {
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    #error-msg {
+      color: #ff6b6b;
+      margin-top: 0.75rem;
+      display: none;
+    }
+
     .mute-btn {
       position: fixed;
       z-index: 100;
@@ -533,6 +577,14 @@
   </style>
 </head>
 <body>
+  <div id="password-overlay">
+    <form class="login-box" onsubmit="checkPassword(event)">
+      <h2>CONFIRM PASSWORD</h2>
+      <input type="password" id="password-input" placeholder="Password" required autofocus>
+      <button type="submit">Unlock</button>
+      <p id="error-msg">Incorrect password. Try again.</p>
+    </form>
+  </div>
   <audio autoplay="" id="bgm" loop="" src="Assets/illusive.mp3"></audio>
   <button aria-label="Mute music" aria-pressed="false" class="mute-btn" id="muteBtn" title="Mute music" type="button">
 <svg aria-hidden="true" class="icon-sound" viewbox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"></path><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"></path></svg>
@@ -736,6 +788,27 @@ Many AIs develop a sort of "personality" over time, regardless of any efforts to
       if (img.complete) markLoaded();
       else img.addEventListener('load', markLoaded);
     });
+
+    // More secret things hehehehe
+    const CORRECT_PASSWORD = "secret123";
+
+    // Keep user unlocked during the current browser session
+    if (sessionStorage.getItem("unlocked") === "true") {
+      document.getElementById("password-overlay").style.display = "none";
+    }
+
+    function checkPassword(event) {
+      event.preventDefault(); // Prevents page reload on form submit
+      const entered = document.getElementById("password-input").value;
+      const errorMsg = document.getElementById("error-msg");
+
+      if (entered === CORRECT_PASSWORD) {
+        document.getElementById("password-overlay").style.display = "none";
+        sessionStorage.setItem("unlocked", "true");
+      } else {
+        errorMsg.style.display = "block";
+      }
+    }
 
     // Click sound for every entry (mouse, touch, or Enter/Space). Restarts on rapid presses.
     const buttonSfx = new Audio('Assets/button.mp3');
